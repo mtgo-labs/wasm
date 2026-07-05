@@ -1,0 +1,12 @@
+# Compiled WASM binary
+*.wasm
+
+# Go workspace files (local dev only)
+go.work
+go.work.sum
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/

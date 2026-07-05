@@ -1,0 +1,53 @@
+{
+  "name": "@mtgo-labs/wasm",
+  "version": "0.1.0",
+  "description": "Telegram MTProto client for the browser via WebAssembly — powered by mtgo.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./lib/mtgo-wasm-vite.js",
+  "types": "./lib/mtgo-wasm-vite.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/mtgo-wasm-vite.d.ts",
+      "import": "./lib/mtgo-wasm-vite.js"
+    },
+    "./browser": {
+      "types": "./lib/mtgo-wasm.d.ts",
+      "import": "./lib/mtgo-wasm.js"
+    },
+    "./wasm_exec.js": "./lib/wasm_exec.js",
+    "./mtgo-wasm.wasm": "./mtgo-wasm.wasm",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "mtgo-wasm.wasm"
+  ],
+  "scripts": {
+    "prepublishOnly": "make build copy-exec"
+  },
+  "keywords": [
+    "telegram",
+    "mtproto",
+    "wasm",
+    "webassembly",
+    "mtgo",
+    "browser",
+    "client"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtgo-labs/mtgo-wasm.git"
+  },
+  "homepage": "https://github.com/mtgo-labs/mtgo-wasm",
+  "bugs": {
+    "url": "https://github.com/mtgo-labs/mtgo-wasm/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

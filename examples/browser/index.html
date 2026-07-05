@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mtgo-wasm demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    fieldset { margin-bottom: 1rem; }
+    label { display: block; margin: 0.25rem 0; }
+    input, button { font-size: 0.95rem; padding: 0.3rem 0.5rem; }
+    button { cursor: pointer; margin: 0.25rem 0.5rem 0.25rem 0; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #status { padding: 0.5rem; border-radius: 4px; margin: 0.5rem 0; }
+    #output { white-space: pre-wrap; background: #f4f4f4; padding: 0.75rem; border-radius: 4px; max-height: 400px; overflow: auto; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>mtgo-wasm</h1>
+  <p>Telegram MTProto client running in your browser via WebAssembly.</p>
+
+  <fieldset>
+    <legend>Credentials</legend>
+    <label>API ID <input type="number" id="apiID" placeholder="12345"></label>
+    <label>API Hash <input type="text" id="apiHash" placeholder="0123456789abcdef..."></label>
+    <label>Bot Token <input type="text" id="botToken" placeholder="123:ABC (optional for user login)"></label>
+    <label>Session String <input type="text" id="sessionString" placeholder="(optional)"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>RPC</legend>
+    <label>Method <input type="text" id="method" value="users.getUsers" style="width:300px"></label>
+    <label>Params (JSON) <input type="text" id="params" value='{"id":[{"_":"inputUserSelf"}]}' style="width:400px"></label>
+  </fieldset>
+
+  <div>
+    <button id="connectBtn">Connect</button>
+    <button id="invokeBtn" disabled>Invoke</button>
+    <button id="disconnectBtn" disabled>Disconnect</button>
+  </div>
+
+  <div id="status"></div>
+  <div id="output"></div>
+
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

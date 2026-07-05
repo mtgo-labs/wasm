@@ -1,13 +1,15 @@
+<div align="center">
+
 # mtgo-wasm
 
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)](https://go.dev/)
 [![mtgo](https://img.shields.io/badge/mtgo-v0.12.0+-5684AD)](https://github.com/mtgo-labs/mtgo)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@mtgo-labs/wasm)](https://www.npmjs.com/package/@mtgo-labs/wasm)
 
-**mtgo-wasm** brings the [mtgo](https://github.com/mtgo-labs/mtgo) Telegram
-MTProto client to the browser via WebAssembly. It exposes a small JavaScript
-API for creating a client, connecting over WebSocket, and invoking arbitrary
-Telegram TL methods — all running client-side in the browser.
+<p><strong>mtgo-wasm</strong> brings the <a href="https://github.com/mtgo-labs/mtgo">mtgo</a> Telegram MTProto client to the browser via WebAssembly. It exposes a small JavaScript API for creating a client, connecting over WebSocket, and invoking arbitrary Telegram TL methods — all running client-side in the browser.</p>
+
+</div>
 
 ```mermaid
 flowchart LR

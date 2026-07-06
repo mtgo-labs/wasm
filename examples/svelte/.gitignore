@@ -6,7 +6,7 @@ build/
 dist/
 
 # WASM assets — build artifacts from the Go side, linked via postinstall
-static/mtgo-wasm.wasm
+static/mtgo-wasm.wasm.gz
 static/wasm_exec.js
 
 # Env

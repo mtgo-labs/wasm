@@ -4,13 +4,18 @@
  * Run automatically via `postinstall`. Creates relative symlinks so the dev
  * server and production build serve the same files the Go toolchain produced:
  *
- *   static/mtgo-wasm.wasm  →  ../../../mtgo-wasm.wasm
- *   static/wasm_exec.js    →  ../../../lib/wasm_exec.js
+ *   static/mtgo-wasm.wasm.gz  →  ../../../mtgo-wasm.wasm.gz
+ *   static/wasm_exec.js       →  ../../../lib/wasm_exec.js
+ *
+ * The wasm ships gzip-compressed (~5 MiB) rather than the raw ~30 MB binary so
+ * the SvelteKit example deploys to size-capped hosts such as Cloudflare Pages
+ * (25 MiB per file). The loader decompresses it in the browser. Produce the
+ * artifact with `make gzip` in the repo root.
  *
  * If the targets don't exist yet, the symlinks are still created — they'll
- * resolve once `make build && make copy-exec` has been run in the repo root.
+ * resolve once `make build copy-exec gzip` has been run.
  */
-import { mkdir, symlink, readlink, rm } from 'node:fs/promises';
+import { mkdir, symlink, readlink, rm, stat } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,8 +26,8 @@ const staticDir = resolve(projectRoot, 'static');
 
 const links = [
   {
-    name: 'mtgo-wasm.wasm',
-    target: resolve(repoRoot, 'mtgo-wasm.wasm'),
+    name: 'mtgo-wasm.wasm.gz',
+    target: resolve(repoRoot, 'mtgo-wasm.wasm.gz'),
   },
   {
     name: 'wasm_exec.js',
@@ -31,6 +36,18 @@ const links = [
 ];
 
 await mkdir(staticDir, { recursive: true });
+
+// Legacy cleanup: older versions linked the raw (uncompressed) wasm into
+// static/. Remove any such symlink so it can't blow past a host's per-file
+// size limit (e.g. Cloudflare Pages' 25 MiB cap). Real files are left alone.
+const legacyRaw = resolve(staticDir, 'mtgo-wasm.wasm');
+try {
+  await readlink(legacyRaw); // throws if not a symlink / missing
+  await rm(legacyRaw);
+  console.log('  removed static/mtgo-wasm.wasm (legacy raw link, replaced by .gz)');
+} catch {
+  // not a symlink or absent — nothing to do
+}
 
 for (const { name, target } of links) {
   const linkPath = resolve(staticDir, name);
@@ -61,4 +78,4 @@ for (const { name, target } of links) {
   }
 }
 
-console.log('\nWASM assets linked. Run `make build && make copy-exec` in the repo root if they are missing.');
+console.log('\nWASM assets linked. Run `make build copy-exec gzip` in the repo root if they are missing.');

@@ -44,7 +44,7 @@
 
   onMount(async () => {
     try {
-      mtgo = await load({ wasmUrl: "/mtgo-wasm.wasm" });
+      mtgo = await load({ wasmUrl: "/mtgo-wasm.wasm.gz" });
       status = "WASM ready — enter credentials and connect.";
       loading = false;
     } catch (err) {

@@ -1,5 +1,6 @@
 # Compiled WASM binary
 *.wasm
+*.wasm.gz
 
 # Go workspace files (local dev only)
 go.work

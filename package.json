@@ -1,6 +1,6 @@
 {
   "name": "@mtgo-labs/wasm",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Telegram MTProto client for the browser via WebAssembly — powered by mtgo.",
   "license": "MIT",
   "type": "module",

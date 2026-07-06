@@ -58,6 +58,8 @@ export interface MTGoClient {
   invoke<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
   /** Get the authenticated user, or `null` if not connected. */
   me(): MTGoUser | null;
+  /** Full user info via RPC (users.getUsers with inputUserSelf). Returns a Promise. */
+  getMe(): Promise<unknown>;
   /** Close the transport and release the session. */
   disconnect(): Promise<void>;
   /** TL namespace proxy: tg.namespace.method(params) for any TL method. */

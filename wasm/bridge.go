@@ -136,6 +136,21 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 				"is_bot":     me.IsBot,
 			})
 		}),
+		"getMe": js.FuncOf(func(this js.Value, args []js.Value) any {
+			return newPromise(func(resolve, reject js.Value) {
+				safeGo(reject, func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+					defer cancel()
+					result, err := client.InvokeJSON(ctx, "users.getUsers",
+						[]byte(`{"id":[{"_":"inputUserSelf"}]}`), true)
+					if err != nil {
+						reject.Invoke(jsError(err))
+						return
+					}
+					resolve.Invoke(jsonToJSValue(result))
+				})
+			})
+		}),
 	}
 	// Wrap the client in a Proxy: known methods (connect, invoke, me,
 	// disconnect, id) pass through; any other string property is treated

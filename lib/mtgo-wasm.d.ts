@@ -5,7 +5,7 @@
  * than an options object, matching the plain `<script>` usage pattern.
  */
 
-export interface MtgoUser {
+export interface MTGoUser {
   id: number;
   username: string;
   first_name: string;
@@ -23,16 +23,17 @@ export interface ClientOptions {
   passwordFunc?: (hint: string) => string | Promise<string>;
 }
 
-export interface MtgoClient {
+export interface MTGoClient {
   readonly id: number;
   connect(): Promise<void>;
   invoke<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
-  me(): MtgoUser | null;
+  me(): MTGoUser | null;
   disconnect(): Promise<void>;
+  readonly tg: Record<string, Record<string, (params?: Record<string, unknown>) => Promise<unknown>>>;
 }
 
 export interface MTGoWasmAPI {
-  createClient(opts: ClientOptions): MtgoClient;
+  createClient(opts: ClientOptions): MTGoClient;
 }
 
 /**

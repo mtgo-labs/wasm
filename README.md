@@ -192,6 +192,42 @@ or `null` if not connected.
 
 Closes the transport and releases the session.
 
+## TL namespace proxy
+
+The client itself acts as a proxy — any property that isn't a known method
+(`connect`, `invoke`, `me`, `disconnect`) is treated as a TL namespace,
+giving you `namespace.method(params)` access to **all** Telegram TL methods:
+
+```js
+const tg = MTGoWasm.createClient({ apiID: 12345, apiHash: "...", botToken: "..." });
+await tg.connect();
+
+// Set your username
+await tg.account.updateUsername({ username: "new_name" });
+
+// Update profile
+await tg.account.updateProfile({
+  first_name: "John",
+  last_name: "Doe",
+  about: "Hello from WASM!",
+});
+
+// Send a message
+await tg.messages.sendMessage({
+  peer: { _: "inputPeerSelf" },
+  message: "Hello from the browser!",
+  random_id: Date.now(),
+});
+
+// Get your own user info
+const result = await tg.users.getUsers({
+  id: [{ _: "inputUserSelf" }],
+});
+```
+
+Params use snake_case keys matching the TL schema (same as `invoke`). Each call
+returns a Promise resolving to the TL response.
+
 ## Package exports
 
 | Subpath                            | Description                              |

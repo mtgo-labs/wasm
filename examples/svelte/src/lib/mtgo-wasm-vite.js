@@ -25,7 +25,7 @@
  * @param {object} [opts]
  * @param {string} [opts.wasmUrl="/mtgo-wasm.wasm"]    - URL to the .wasm file
  * @param {string} [opts.wasmExecUrl="/wasm_exec.js"]   - URL to Go's wasm_exec.js (skip if already loaded)
- * @returns {Promise<object>} The MtgoWasm API
+ * @returns {Promise<object>} The MTGoWasm API
  */
 export async function load(opts = {}) {
   const {
@@ -65,13 +65,13 @@ export async function load(opts = {}) {
     );
   });
 
-  if (!globalThis.MtgoWasm) {
+  if (!globalThis.MTGoWasm) {
     throw new Error(
-      "WASM instance started but MtgoWasm API was not registered. " +
+      "WASM instance started but MTGoWasm API was not registered. " +
       "This may indicate a panic during initialization."
     );
   }
-  return globalThis.MtgoWasm;
+  return globalThis.MTGoWasm;
 }
 
 /**

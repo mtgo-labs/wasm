@@ -137,7 +137,10 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 			})
 		}),
 	}
-	return js.ValueOf(clientObj)
+	// Wrap the client in a Proxy: known methods (connect, invoke, me,
+	// disconnect, id) pass through; any other string property is treated
+	// as a TL namespace (e.g. tg.account.updateProfile(...) → invoke).
+	return wrapClientProxy(js.ValueOf(clientObj), client)
 }
 
 // --- Promise helpers ---
@@ -225,3 +228,100 @@ func awaitString(v js.Value) (string, error) {
 	}
 }
 
+// wrapClientProxy wraps the client JS object in a Proxy so that:
+//
+//   - Known properties (connect, invoke, me, disconnect, id) pass through.
+//   - Any other string property is treated as a TL namespace, returning a
+//     nested proxy: client.account.updateProfile(...) → invoke("account.updateProfile", ...).
+//   - Symbols and well-known JS properties (then, toJSON, etc.) are ignored
+//     to prevent thenable detection and proxy trap interference.
+//
+// This lets users write:
+//
+//	const tg = mtgo.createClient({ ... });
+//	await tg.connect();
+//	await tg.account.updateProfile({ first_name: "John" });
+//	await tg.messages.sendMessage({ peer: { _: "inputPeerSelf" }, message: "hi" });
+func wrapClientProxy(base js.Value, client *telegram.Client) js.Value {
+	proxyCtor := js.Global().Get("Proxy")
+	empty := js.ValueOf(map[string]any{})
+
+	// invokeMethod runs InvokeJSON and returns a Promise.
+	invokeMethod := func(method string, params js.Value) js.Value {
+		var jsonParams []byte
+		if params.Type() == js.TypeObject {
+			jsonParams = jsValueToJSON(params)
+		} else {
+			jsonParams = []byte("{}")
+		}
+		return newPromise(func(resolve, reject js.Value) {
+			safeGo(reject, func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				defer cancel()
+				result, err := client.InvokeJSON(ctx, method, jsonParams, true)
+				if err != nil {
+					reject.Invoke(jsError(err))
+					return
+				}
+				resolve.Invoke(jsonToJSValue(result))
+			})
+		})
+	}
+
+	// makeNSProxy creates a namespace proxy: ns.method(params) → invoke("ns.method", params).
+	makeNSProxy := func(ns string) js.Value {
+		handler := map[string]any{
+			"get": js.FuncOf(func(this js.Value, args []js.Value) any {
+				mprop := args[1]
+				if mprop.Type() != js.TypeString {
+					return js.Undefined()
+				}
+				method := mprop.String()
+				if method == "then" || method == "catch" ||
+					method == "finally" || method == "toJSON" ||
+					method == "toString" {
+					return js.Undefined()
+				}
+				fullMethod := ns + "." + method
+				return js.FuncOf(func(this js.Value, args []js.Value) any {
+					var params js.Value
+					if len(args) > 0 {
+						params = args[0]
+					}
+					return invokeMethod(fullMethod, params)
+				})
+			}),
+		}
+		return proxyCtor.New(empty, js.ValueOf(handler))
+	}
+
+	// Top-level handler: known props → base object; unknown → namespace proxy.
+	topHandler := map[string]any{
+		"get": js.FuncOf(func(this js.Value, args []js.Value) any {
+			target := args[0]
+			prop := args[1]
+
+			// Ignore non-string properties (symbols, etc.)
+			if prop.Type() != js.TypeString {
+				return js.Undefined()
+			}
+			name := prop.String()
+
+			// Prevent thenable detection.
+			if name == "then" || name == "catch" || name == "finally" {
+				return js.Undefined()
+			}
+
+			// Known client properties → return from base object.
+			val := target.Get(name)
+			if val.Type() != js.TypeUndefined {
+				return val
+			}
+
+			// Unknown string property → treat as TL namespace.
+			return makeNSProxy(name)
+		}),
+	}
+
+	return proxyCtor.New(base, js.ValueOf(topHandler))
+}

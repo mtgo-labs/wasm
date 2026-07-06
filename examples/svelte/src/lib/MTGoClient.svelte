@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import CodeEditor from "$lib/CodeEditor.svelte";
-  import { load, type MTGoWasmAPI, type MtgoClient as MtgoClientHandle, type ClientOptions } from "$lib/mtgo-wasm-vite.js";
+  import { load, type MTGoWasmAPI, type MTGoClient as MTGoClientHandle, type ClientOptions } from "$lib/mtgo-wasm-vite.js";
   import { filterMethods, getTemplate, type TLMethod } from "$lib/tl-methods";
 
   // Non-reactive handles.
   let mtgo: MTGoWasmAPI | null = null;
-  let client: MtgoClientHandle | null = null;
+  let client: MTGoClientHandle | null = null;
 
   // Reactive UI state.
   let loading = $state(true);

@@ -1,15 +1,15 @@
 /**
  * mtgo-wasm — Vite/SvelteKit loader type definitions.
  *
- * Covers the load() function, the MtgoWasm API surface, and global
- * declarations for Go (from wasm_exec.js) and MtgoWasm (set by the Go
+ * Covers the load() function, the MTGoWasm API surface, and global
+ * declarations for Go (from wasm_exec.js) and MTGoWasm (set by the Go
  * bridge in wasm/bridge.go).
  */
 
 // --- Public API types ---
 
 /** Authenticated user info returned by client.me(). */
-export interface MtgoUser {
+export interface MTGoUser {
   id: number;
   username: string;
   first_name: string;
@@ -18,7 +18,7 @@ export interface MtgoUser {
 }
 
 /**
- * Options passed to MtgoWasm.createClient().
+ * Options passed to MTGoWasm.createClient().
  *
  * `apiID` and `apiHash` are required unless `sessionString` carries them.
  */
@@ -40,7 +40,7 @@ export interface ClientOptions {
 }
 
 /** A Telegram MTProto client instance backed by the WASM runtime. */
-export interface MtgoClient {
+export interface MTGoClient {
   /** Internal client handle ID. */
   readonly id: number;
   /**
@@ -57,14 +57,14 @@ export interface MtgoClient {
    */
   invoke<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
   /** Get the authenticated user, or `null` if not connected. */
-  me(): MtgoUser | null;
+  me(): MTGoUser | null;
   /** Close the transport and release the session. */
   disconnect(): Promise<void>;
 }
 
 /** Global API installed by the Go bridge after WASM instantiation. */
-export interface MtgoWasmAPI {
-  createClient(opts: ClientOptions): MtgoClient;
+export interface MTGoWasmAPI {
+  createClient(opts: ClientOptions): MTGoClient;
 }
 
 /** Options for the Vite loader's `load()` function. */
@@ -83,9 +83,9 @@ export interface LoadOptions {
 /**
  * Load and instantiate mtgo-wasm.
  *
- * @returns The MtgoWasm API (`createClient`).
+ * @returns The MTGoWasm API (`createClient`).
  */
-export declare function load(opts?: LoadOptions): Promise<MtgoWasmAPI>;
+export declare function load(opts?: LoadOptions): Promise<MTGoWasmAPI>;
 
 // --- Global declarations (from wasm_exec.js + Go bridge) ---
 
@@ -105,5 +105,5 @@ declare global {
   var Go: { new (): GoInstance };
   /** mtgo-wasm API, set by the Go bridge after instantiation. */
   // eslint-disable-next-line no-var
-  var MtgoWasm: MtgoWasmAPI | undefined;
+  var MTGoWasm: MTGoWasmAPI | undefined;
 }

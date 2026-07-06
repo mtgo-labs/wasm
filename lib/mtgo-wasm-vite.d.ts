@@ -9,7 +9,7 @@
 // --- Public API types ---
 
 /** Authenticated user info returned by client.me(). */
-export interface MtgoUser {
+export interface MTGoUser {
   id: number;
   username: string;
   first_name: string;
@@ -40,7 +40,7 @@ export interface ClientOptions {
 }
 
 /** A Telegram MTProto client instance backed by the WASM runtime. */
-export interface MtgoClient {
+export interface MTGoClient {
   /** Internal client handle ID. */
   readonly id: number;
   /**
@@ -57,14 +57,31 @@ export interface MtgoClient {
    */
   invoke<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
   /** Get the authenticated user, or `null` if not connected. */
-  me(): MtgoUser | null;
+  me(): MTGoUser | null;
   /** Close the transport and release the session. */
   disconnect(): Promise<void>;
+  /** TL namespace proxy: tg.namespace.method(params) for any TL method. */
+  readonly [namespace: string]: TGNamespaces | TGMethods | Promise<unknown> | MTGoUser | null | number | Function;
+}
+
+/**
+ * TL namespace proxy. Provides `namespace.method(params)` style access
+ * to all Telegram TL methods. Each method returns a Promise.
+ *
+ * Params use snake_case keys matching the TL schema (same as `invoke`).
+ */
+export interface TGNamespaces {
+  readonly [namespace: string]: TGMethods;
+}
+
+/** TL method accessor — call any method as a function returning a Promise. */
+export interface TGMethods {
+  readonly [method: string]: (params?: Record<string, unknown>) => Promise<unknown>;
 }
 
 /** Global API installed by the Go bridge after WASM instantiation. */
 export interface MTGoWasmAPI {
-  createClient(opts: ClientOptions): MtgoClient;
+  createClient(opts: ClientOptions): MTGoClient;
 }
 
 /** Options for the Vite loader's `load()` function. */

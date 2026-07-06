@@ -13,7 +13,7 @@
 
 ```mermaid
 flowchart LR
-    JS[Your JS code] -->|invoke method| W[@mtgo-labs/wasm<br/>.wasm]
+    JS[Your JS code] -->|invoke method| W["@mtgo-labs/wasm .wasm"]
     W -->|syscall/js| WS[Browser WebSocket]
     WS -->|wss://| TG[Telegram DC]
     TG --> WS --> W --> JS

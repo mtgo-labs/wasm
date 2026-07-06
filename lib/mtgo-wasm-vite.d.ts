@@ -60,6 +60,8 @@ export interface MTGoClient {
   me(): MTGoUser | null;
   /** Full user info via RPC (users.getUsers with inputUserSelf). Returns a Promise. */
   getMe(): Promise<unknown>;
+  /** Resolve a @username to a peer via contacts.resolveUsername. */
+  resolveUsername(params: { username: string }): Promise<unknown>;
   /** Close the transport and release the session. */
   disconnect(): Promise<void>;
   /** TL namespace proxy: tg.namespace.method(params) for any TL method. */

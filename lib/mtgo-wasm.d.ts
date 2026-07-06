@@ -29,6 +29,7 @@ export interface MTGoClient {
   invoke<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
   me(): MTGoUser | null;
   getMe(): Promise<unknown>;
+  resolveUsername(params: { username: string }): Promise<unknown>;
   disconnect(): Promise<void>;
   readonly tg: Record<string, Record<string, (params?: Record<string, unknown>) => Promise<unknown>>>;
 }

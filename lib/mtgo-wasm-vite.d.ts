@@ -56,15 +56,65 @@ export interface MTGoClient {
    * @returns The parsed response, typed as `T` (defaults to `unknown`).
    */
   invoke<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
-  /** Get the authenticated user, or `null` if not connected. */
+  /** Get the authenticated user (cached, sync). */
   me(): MTGoUser | null;
-  /** Full user info via RPC (users.getUsers with inputUserSelf). Returns a Promise. */
-  getMe(): Promise<unknown>;
-  /** Resolve a @username to a peer via contacts.resolveUsername. */
-  resolveUsername(params: { username: string }): Promise<unknown>;
   /** Close the transport and release the session. */
   disconnect(): Promise<void>;
-  /** TL namespace proxy: tg.namespace.method(params) for any TL method. */
+
+  // -- Auth --
+  /** Full user info via RPC. */
+  getMe(): Promise<unknown>;
+  /** Log out and invalidate the current session. */
+  logOut(): Promise<unknown>;
+
+  // -- Profile --
+  /** Set the current account's username. */
+  setUsername(params: { username: string }): Promise<unknown>;
+  /** Set the current account's bio. */
+  setBio(params: { about: string }): Promise<unknown>;
+  /** Update profile fields (firstName, lastName, bio). */
+  updateProfile(params: { first_name?: string; last_name?: string; about?: string }): Promise<unknown>;
+  /** Check if a username is available. */
+  checkUsername(params: { username: string }): Promise<unknown>;
+
+  // -- Peer resolution --
+  resolveUsername(params: { username: string }): Promise<unknown>;
+  resolvePhone(params: { phone: string }): Promise<unknown>;
+
+  // -- Messages --
+  sendMessage(params: Record<string, unknown>): Promise<unknown>;
+  editMessage(params: Record<string, unknown>): Promise<unknown>;
+  deleteMessages(params: { id: number[]; revoke?: boolean }): Promise<unknown>;
+  forwardMessages(params: Record<string, unknown>): Promise<unknown>;
+  getHistory(params: { peer: unknown; offset_id?: number; limit?: number }): Promise<unknown>;
+  getDialogs(params?: Record<string, unknown>): Promise<unknown>;
+  searchMessages(params: Record<string, unknown>): Promise<unknown>;
+  sendReaction(params: Record<string, unknown>): Promise<unknown>;
+  readHistory(params: { peer: unknown; max_id?: number }): Promise<unknown>;
+  pinMessage(params: Record<string, unknown>): Promise<unknown>;
+  unpinMessage(params: Record<string, unknown>): Promise<unknown>;
+
+  // -- Chats & channels --
+  getChat(params: { id: number[] }): Promise<unknown>;
+  getFullChat(params: { channel: unknown }): Promise<unknown>;
+  joinChat(params: { channel: unknown }): Promise<unknown>;
+  leaveChat(params: { channel: unknown }): Promise<unknown>;
+  createChannel(params: Record<string, unknown>): Promise<unknown>;
+  createGroup(params: { users: unknown[]; title: string }): Promise<unknown>;
+  getChatMembers(params: { channel: unknown }): Promise<unknown>;
+  inviteToChat(params: Record<string, unknown>): Promise<unknown>;
+
+  // -- Users --
+  getUsers(params: { id: unknown[] }): Promise<unknown>;
+  getFullUser(params: { id: unknown }): Promise<unknown>;
+
+  // -- Bots --
+  answerCallbackQuery(params: Record<string, unknown>): Promise<unknown>;
+  answerInlineQuery(params: Record<string, unknown>): Promise<unknown>;
+  getMyCommands(params?: Record<string, unknown>): Promise<unknown>;
+  setMyCommands(params: Record<string, unknown>): Promise<unknown>;
+
+  /** TL namespace proxy for all other TL methods. */
   readonly [namespace: string]: TGNamespaces | TGMethods | Promise<unknown> | MTGoUser | null | number | Function;
 }
 

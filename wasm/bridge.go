@@ -76,6 +76,35 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 	id := nextClientID.Add(1)
 
 	// Build the JS client object with method closures over the Go *Client.
+
+	// helper: create a JS function that calls InvokeJSON with the given TL method.
+	// If defaultParams is non-empty, it's used when the caller passes no args.
+	jsRPC := func(method, defaultParams string) func(this js.Value, args []js.Value) any {
+		return func(this js.Value, args []js.Value) any {
+			var jsonParams []byte
+			if len(args) > 0 && args[0].Type() == js.TypeObject {
+				jsonParams = jsValueToJSON(args[0])
+			} else if defaultParams != "" {
+				jsonParams = []byte(defaultParams)
+			} else {
+				jsonParams = []byte("{}")
+			}
+			return newPromise(func(resolve, reject js.Value) {
+				safeGo(reject, func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+					defer cancel()
+					result, err := client.InvokeJSON(ctx, method, jsonParams, true)
+					if err != nil {
+						reject.Invoke(jsError(err))
+						return
+					}
+					resolve.Invoke(jsonToJSValue(result))
+				})
+			})
+		}
+	}
+
+
 	clientObj := map[string]any{
 		"id": id,
 		"connect": js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -136,33 +165,38 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 				"is_bot":     me.IsBot,
 			})
 		}),
-		"getMe": js.FuncOf(func(this js.Value, args []js.Value) any {
-			return newPromise(func(resolve, reject js.Value) {
-				safeGo(reject, func() {
-					ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-					defer cancel()
-					result, err := client.InvokeJSON(ctx, "users.getUsers",
-						[]byte(`{"id":[{"_":"inputUserSelf"}]}`), true)
-					if err != nil {
-						reject.Invoke(jsError(err))
-						return
-					}
-					resolve.Invoke(jsonToJSValue(result))
-				})
-			})
-		}),
-		"resolveUsername": js.FuncOf(func(this js.Value, args []js.Value) any {
+
+		// -- Auth --
+		"getMe":  js.FuncOf(jsRPC("users.getUsers", `{"id":[{"_":"inputUserSelf"}]}`)),
+		"logOut": js.FuncOf(jsRPC("auth.logOut", "")),
+
+		// -- Profile --
+		"setUsername":    js.FuncOf(jsRPC("account.updateUsername", "")),
+		"setBio":         js.FuncOf(jsRPC("account.updateProfile", "")),
+		"updateProfile":  js.FuncOf(jsRPC("account.updateProfile", "")),
+		"checkUsername":  js.FuncOf(jsRPC("account.checkUsername", "")),
+
+		// -- Peer resolution --
+		"resolveUsername": js.FuncOf(jsRPC("contacts.resolveUsername", "")),
+		"resolvePhone":    js.FuncOf(jsRPC("contacts.resolvePhone", "")),
+
+		// -- Messages --
+		"sendMessage": js.FuncOf(func(this js.Value, args []js.Value) any {
 			if len(args) < 1 || args[0].Type() != js.TypeObject {
 				return newPromise(func(_, reject js.Value) {
-					reject.Invoke(jsError(fmt.Errorf("resolveUsername: { username } required")))
+					reject.Invoke(jsError(fmt.Errorf("sendMessage: params object required")))
 				})
 			}
-			params := jsValueToJSON(args[0])
+			params := args[0]
+			if params.Get("random_id").Type() == js.TypeUndefined {
+				params.Set("random_id", js.ValueOf(client.RandomID()))
+			}
+			jsonParams := jsValueToJSON(params)
 			return newPromise(func(resolve, reject js.Value) {
 				safeGo(reject, func() {
 					ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 					defer cancel()
-					result, err := client.InvokeJSON(ctx, "contacts.resolveUsername", params, true)
+					result, err := client.InvokeJSON(ctx, "messages.sendMessage", jsonParams, true)
 					if err != nil {
 						reject.Invoke(jsError(err))
 						return
@@ -171,6 +205,36 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 				})
 			})
 		}),
+		"editMessage":      js.FuncOf(jsRPC("messages.editMessage", "")),
+		"deleteMessages":   js.FuncOf(jsRPC("messages.deleteMessages", "")),
+		"forwardMessages":  js.FuncOf(jsRPC("messages.forwardMessages", "")),
+		"getHistory":       js.FuncOf(jsRPC("messages.getHistory", "")),
+		"getDialogs":       js.FuncOf(jsRPC("messages.getDialogs", "")),
+		"searchMessages":   js.FuncOf(jsRPC("messages.search", "")),
+		"sendReaction":     js.FuncOf(jsRPC("messages.sendReaction", "")),
+		"readHistory":      js.FuncOf(jsRPC("messages.readHistory", "")),
+		"pinMessage":       js.FuncOf(jsRPC("messages.updatePinnedMessage", "")),
+		"unpinMessage":     js.FuncOf(jsRPC("messages.updatePinnedMessage", "")),
+
+		// -- Chats & channels --
+		"getChat":          js.FuncOf(jsRPC("messages.getChats", "")),
+		"getFullChat":      js.FuncOf(jsRPC("channels.getFullChannel", "")),
+		"joinChat":         js.FuncOf(jsRPC("channels.joinChannel", "")),
+		"leaveChat":        js.FuncOf(jsRPC("channels.leaveChannel", "")),
+		"createChannel":    js.FuncOf(jsRPC("channels.createChannel", "")),
+		"createGroup":      js.FuncOf(jsRPC("messages.createChat", "")),
+		"getChatMembers":   js.FuncOf(jsRPC("channels.getParticipants", "")),
+		"inviteToChat":     js.FuncOf(jsRPC("channels.inviteToChannel", "")),
+
+		// -- Users --
+		"getUsers":         js.FuncOf(jsRPC("users.getUsers", "")),
+		"getFullUser":      js.FuncOf(jsRPC("users.getFullUser", "")),
+
+		// -- Bots --
+		"answerCallbackQuery": js.FuncOf(jsRPC("messages.setBotCallbackAnswer", "")),
+		"answerInlineQuery":   js.FuncOf(jsRPC("messages.setInlineBotResults", "")),
+		"getMyCommands":       js.FuncOf(jsRPC("bots.getBotCommands", "")),
+		"setMyCommands":       js.FuncOf(jsRPC("bots.setBotCommands", "")),
 	}
 	// Wrap the client in a Proxy: known methods (connect, invoke, me,
 	// disconnect, id) pass through; any other string property is treated

@@ -28,10 +28,41 @@ export interface MTGoClient {
   connect(): Promise<void>;
   invoke<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;
   me(): MTGoUser | null;
-  getMe(): Promise<unknown>;
-  resolveUsername(params: { username: string }): Promise<unknown>;
   disconnect(): Promise<void>;
-  readonly tg: Record<string, Record<string, (params?: Record<string, unknown>) => Promise<unknown>>>;
+  getMe(): Promise<unknown>;
+  logOut(): Promise<unknown>;
+  setUsername(params: { username: string }): Promise<unknown>;
+  setBio(params: { about: string }): Promise<unknown>;
+  updateProfile(params: { first_name?: string; last_name?: string; about?: string }): Promise<unknown>;
+  checkUsername(params: { username: string }): Promise<unknown>;
+  resolveUsername(params: { username: string }): Promise<unknown>;
+  resolvePhone(params: { phone: string }): Promise<unknown>;
+  sendMessage(params: Record<string, unknown>): Promise<unknown>;
+  editMessage(params: Record<string, unknown>): Promise<unknown>;
+  deleteMessages(params: { id: number[]; revoke?: boolean }): Promise<unknown>;
+  forwardMessages(params: Record<string, unknown>): Promise<unknown>;
+  getHistory(params: { peer: unknown; offset_id?: number; limit?: number }): Promise<unknown>;
+  getDialogs(params?: Record<string, unknown>): Promise<unknown>;
+  searchMessages(params: Record<string, unknown>): Promise<unknown>;
+  sendReaction(params: Record<string, unknown>): Promise<unknown>;
+  readHistory(params: { peer: unknown; max_id?: number }): Promise<unknown>;
+  pinMessage(params: Record<string, unknown>): Promise<unknown>;
+  unpinMessage(params: Record<string, unknown>): Promise<unknown>;
+  getChat(params: { id: number[] }): Promise<unknown>;
+  getFullChat(params: { channel: unknown }): Promise<unknown>;
+  joinChat(params: { channel: unknown }): Promise<unknown>;
+  leaveChat(params: { channel: unknown }): Promise<unknown>;
+  createChannel(params: Record<string, unknown>): Promise<unknown>;
+  createGroup(params: { users: unknown[]; title: string }): Promise<unknown>;
+  getChatMembers(params: { channel: unknown }): Promise<unknown>;
+  inviteToChat(params: Record<string, unknown>): Promise<unknown>;
+  getUsers(params: { id: unknown[] }): Promise<unknown>;
+  getFullUser(params: { id: unknown }): Promise<unknown>;
+  answerCallbackQuery(params: Record<string, unknown>): Promise<unknown>;
+  answerInlineQuery(params: Record<string, unknown>): Promise<unknown>;
+  getMyCommands(params?: Record<string, unknown>): Promise<unknown>;
+  setMyCommands(params: Record<string, unknown>): Promise<unknown>;
+  readonly [namespace: string]: Record<string, (...args: any[]) => Promise<unknown>>;
 }
 
 export interface MTGoWasmAPI {

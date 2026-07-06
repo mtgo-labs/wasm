@@ -31,7 +31,7 @@ export interface MtgoClient {
   disconnect(): Promise<void>;
 }
 
-export interface MtgoWasmAPI {
+export interface MTGoWasmAPI {
   createClient(opts: ClientOptions): MtgoClient;
 }
 
@@ -40,12 +40,12 @@ export interface MtgoWasmAPI {
  *
  * @param wasmPath URL/path to mtgo-wasm.wasm.
  * @param execPath URL/path to wasm_exec.js (skip if already loaded via `<script>`).
- * @returns The MtgoWasm API.
+ * @returns The MTGoWasm API.
  */
-export declare function load(wasmPath: string, execPath?: string): Promise<MtgoWasmAPI>;
+export declare function load(wasmPath: string, execPath?: string): Promise<MTGoWasmAPI>;
 
-/** Global namespace for script-tag usage: `MtgoWasmLoader.load(...)`. */
-export declare const MtgoWasmLoader: { load: typeof load };
+/** Global namespace for script-tag usage: `MTGoWasmLoader.load(...)`. */
+export declare const MTGoWasmLoader: { load: typeof load };
 
 interface GoInstance {
   importObject: WebAssembly.Imports;
@@ -57,7 +57,7 @@ declare global {
   // eslint-disable-next-line no-var
   var Go: { new (): GoInstance };
   // eslint-disable-next-line no-var
-  var MtgoWasm: MtgoWasmAPI | undefined;
+  var MTGoWasm: MTGoWasmAPI | undefined;
   // eslint-disable-next-line no-var
-  var MtgoWasmLoader: { load: typeof load };
+  var MTGoWasmLoader: { load: typeof load };
 }

@@ -1,3 +1,5 @@
+//go:build js && wasm
+
 package wasm
 
 import (
@@ -12,17 +14,17 @@ import (
 
 var nextClientID atomic.Int64
 
-// Register installs the global MtgoWasm API on the JavaScript global object.
+// Register installs the global MTGoWasm API on the JavaScript global object.
 // Call this from main(); the Go program then blocks forever (the wasm instance
 // stays alive to serve JS calls).
 func Register() {
 	api := map[string]any{
 		"createClient": js.FuncOf(jsCreateClient),
 	}
-	js.Global().Set("MtgoWasm", js.ValueOf(api))
+	js.Global().Set("MTGoWasm", js.ValueOf(api))
 }
 
-// jsCreateClient implements MtgoWasm.createClient(opts) -> client handle.
+// jsCreateClient implements MTGoWasm.createClient(opts) -> client handle.
 //
 // opts:
 //

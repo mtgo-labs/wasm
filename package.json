@@ -37,11 +37,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mtgo-labs/mtgo-wasm.git"
+    "url": "git+https://github.com/mtgo-labs/wasm.git"
   },
-  "homepage": "https://github.com/mtgo-labs/mtgo-wasm",
+  "homepage": "https://github.com/mtgo-labs/wasm",
   "bugs": {
-    "url": "https://github.com/mtgo-labs/mtgo-wasm/issues"
+    "url": "https://github.com/mtgo-labs/wasm/issues"
   },
   "engines": {
     "node": ">=18"

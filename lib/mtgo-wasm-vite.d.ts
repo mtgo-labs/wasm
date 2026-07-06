@@ -1,8 +1,8 @@
 /**
  * mtgo-wasm — Vite/SvelteKit loader type definitions.
  *
- * Covers the load() function, the MtgoWasm API surface, and global
- * declarations for Go (from wasm_exec.js) and MtgoWasm (set by the Go
+ * Covers the load() function, the MTGoWasm API surface, and global
+ * declarations for Go (from wasm_exec.js) and MTGoWasm (set by the Go
  * bridge in wasm/bridge.go).
  */
 
@@ -18,7 +18,7 @@ export interface MtgoUser {
 }
 
 /**
- * Options passed to MtgoWasm.createClient().
+ * Options passed to MTGoWasm.createClient().
  *
  * `apiID` and `apiHash` are required unless `sessionString` carries them.
  */
@@ -63,7 +63,7 @@ export interface MtgoClient {
 }
 
 /** Global API installed by the Go bridge after WASM instantiation. */
-export interface MtgoWasmAPI {
+export interface MTGoWasmAPI {
   createClient(opts: ClientOptions): MtgoClient;
 }
 
@@ -83,9 +83,9 @@ export interface LoadOptions {
 /**
  * Load and instantiate mtgo-wasm.
  *
- * @returns The MtgoWasm API (`createClient`).
+ * @returns The MTGoWasm API (`createClient`).
  */
-export declare function load(opts?: LoadOptions): Promise<MtgoWasmAPI>;
+export declare function load(opts?: LoadOptions): Promise<MTGoWasmAPI>;
 
 // --- Global declarations (from wasm_exec.js + Go bridge) ---
 
@@ -105,5 +105,5 @@ declare global {
   var Go: { new (): GoInstance };
   /** mtgo-wasm API, set by the Go bridge after instantiation. */
   // eslint-disable-next-line no-var
-  var MtgoWasm: MtgoWasmAPI | undefined;
+  var MTGoWasm: MTGoWasmAPI | undefined;
 }

@@ -3,7 +3,7 @@
 # @mtgo-labs/wasm
 
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)](https://go.dev/)
-[![mtgo](https://img.shields.io/badge/mtgo-v0.12.0+-5684AD)](https://github.com/mtgo-labs/mtgo)
+[![mtgo](https://img.shields.io/badge/mtgo-v0.12.1+-5684AD)](https://github.com/mtgo-labs/mtgo)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![npm](https://img.shields.io/npm/v/@mtgo-labs/wasm)](https://www.npmjs.com/package/@mtgo-labs/wasm)
 
@@ -250,8 +250,7 @@ mtgo is a pure-Go MTProto client. This package adds two things:
    through mtgo's `InvokeJSON`, so **every TL method** is available without
    per-method glue code.
 
-The mtgo side needs one hook: `Config.WSDialer` (landed in the mtgo release
-after v0.12.0) lets this package inject the browser WebSocket as the transport
+The mtgo side needs one hook: `Config.WSDialer` (landed in mtgo v0.12.1) lets this package inject the browser WebSocket as the transport
 without reaching into mtgo internals.
 
 ## Transport notes
@@ -261,6 +260,29 @@ without reaching into mtgo internals.
   by fetch CORS rules, so browsers can reach Telegram directly — GramJS and
   Telegram Web do the same.
 - All storage is **in-memory** (`InMemory: true`). No filesystem is used.
+
+## Cloudflare Workers / Pages
+
+Cloudflare enforces a 25 MiB per-file limit. Ship the pre-compressed
+`.wasm.gz` (5.2 MB) instead of the raw 29.5 MB binary — the JS loaders
+decompress it transparently in the browser:
+
+```js
+import { load } from "@mtgo-labs/wasm";
+import wasmUrl from "@mtgo-labs/wasm/mtgo-wasm.wasm.gz?url";
+
+const mtgo = await load({ wasmUrl });
+```
+
+For plain HTML/CDN usage:
+
+```js
+const mtgo = await load("https://unpkg.com/@mtgo-labs/wasm/mtgo-wasm.wasm.gz");
+```
+
+The loaders detect gzip by magic bytes (0x1f 0x8b) and decompress via
+`DecompressionStream`, so no server-side `Content-Encoding: gzip` header
+is needed.
 
 ## Building from source
 
@@ -274,7 +296,7 @@ make copy-exec   # copies Go's wasm_exec.js into lib/
 make serve       # starts a demo server at http://localhost:8080/
 ```
 
-Requires Go 1.22+ (for `math/rand/v2`) and the mtgo version that ships
+Requires Go 1.26+ and the mtgo version that ships
 `Config.WSDialer` + `telegram.NewWSDialer`.
 
 ## License

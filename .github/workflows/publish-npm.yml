@@ -28,7 +28,7 @@ jobs:
           registry-url: https://registry.npmjs.org/
 
       - name: Build WASM binary
-        run: make build copy-exec
+        run: make build copy-exec gzip
 
       - name: Verify package contents
         run: npm pack --dry-run

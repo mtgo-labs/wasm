@@ -36,12 +36,18 @@ func Register() {
 //	  phoneNumber: "+1555...",        // optional — interactive user login
 //	  codeFunc: async (phone) => ..., // optional — OTP provider
 //	  passwordFunc: async (hint) => .. // optional — 2FA password provider
+//	  timeout: 60,                    // optional — RPC timeout in seconds (default 60)
 //	}
 func jsCreateClient(this js.Value, args []js.Value) any {
 	if len(args) < 1 || args[0].Type() != js.TypeObject {
 		return jsError(fmt.Errorf("createClient: options object required"))
 	}
 	opts := args[0]
+
+	timeout := 60 * time.Second
+	if v := opts.Get("timeout"); v.Type() == js.TypeNumber && v.Int() > 0 {
+		timeout = time.Duration(v.Int()) * time.Second
+	}
 
 	cfg := telegram.Config{
 		WebSocket:    true,
@@ -68,6 +74,11 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 		cfg.PasswordFunc = makePasswordFunc(v)
 	}
 
+	hasAuth := (cfg.BotToken != "") || (cfg.SessionString != "") || (cfg.PhoneNumber != "")
+	if !hasAuth {
+		return jsError(fmt.Errorf("createClient: one of botToken, sessionString, or phoneNumber is required"))
+	}
+
 	client, err := telegram.NewClient(cfg.APIID, cfg.APIHash, &cfg)
 	if err != nil {
 		return jsError(fmt.Errorf("createClient: %w", err))
@@ -91,7 +102,7 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 			}
 			return newPromise(func(resolve, reject js.Value) {
 				safeGo(reject, func() {
-					ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+					ctx, cancel := context.WithTimeout(context.Background(), timeout)
 					defer cancel()
 					result, err := client.InvokeJSON(ctx, method, jsonParams, true)
 					if err != nil {
@@ -110,7 +121,7 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 		"connect": js.FuncOf(func(this js.Value, args []js.Value) any {
 			return newPromise(func(resolve, reject js.Value) {
 				safeGo(reject, func() {
-					if err := client.Connect(60 * time.Second); err != nil {
+					if err := client.Connect(timeout); err != nil {
 						reject.Invoke(jsError(err))
 						return
 					}
@@ -133,7 +144,7 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 			}
 			return newPromise(func(resolve, reject js.Value) {
 				safeGo(reject, func() {
-					ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+					ctx, cancel := context.WithTimeout(context.Background(), timeout)
 					defer cancel()
 					result, err := client.InvokeJSON(ctx, method, params, true)
 					if err != nil {
@@ -188,13 +199,14 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 				})
 			}
 			params := args[0]
+			paramsCopy := js.Global().Get("Object").Call("assign", js.Global().Get("Object").New(), params)
 			if params.Get("random_id").Type() == js.TypeUndefined {
-				params.Set("random_id", js.ValueOf(client.RandomID()))
+				paramsCopy.Set("random_id", js.ValueOf(client.RandomID()))
 			}
-			jsonParams := jsValueToJSON(params)
+			jsonParams := jsValueToJSON(paramsCopy)
 			return newPromise(func(resolve, reject js.Value) {
 				safeGo(reject, func() {
-					ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+					ctx, cancel := context.WithTimeout(context.Background(), timeout)
 					defer cancel()
 					result, err := client.InvokeJSON(ctx, "messages.sendMessage", jsonParams, true)
 					if err != nil {
@@ -214,7 +226,7 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 		"sendReaction":     js.FuncOf(jsRPC("messages.sendReaction", "")),
 		"readHistory":      js.FuncOf(jsRPC("messages.readHistory", "")),
 		"pinMessage":       js.FuncOf(jsRPC("messages.updatePinnedMessage", "")),
-		"unpinMessage":     js.FuncOf(jsRPC("messages.updatePinnedMessage", "")),
+		"unpinMessage":     js.FuncOf(jsRPC("messages.updatePinnedMessage", `{"pinned": false}`)),
 
 		// -- Chats & channels --
 		"getChat":          js.FuncOf(jsRPC("messages.getChats", "")),
@@ -239,7 +251,7 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 	// Wrap the client in a Proxy: known methods (connect, invoke, me,
 	// disconnect, id) pass through; any other string property is treated
 	// as a TL namespace (e.g. tg.account.updateProfile(...) → invoke).
-	return wrapClientProxy(js.ValueOf(clientObj), client)
+	return wrapClientProxy(js.ValueOf(clientObj), client, timeout)
 }
 
 // --- Promise helpers ---
@@ -249,7 +261,9 @@ func newPromise(fn func(resolve, reject js.Value)) js.Value {
 		fn(args[0], args[1])
 		return nil
 	})
-	return js.Global().Get("Promise").New(handler)
+	p := js.Global().Get("Promise").New(handler)
+	handler.Release()
+	return p
 }
 
 // safeGo runs fn in a goroutine with panic recovery. If fn panics, the
@@ -286,21 +300,21 @@ func jsonToJSValue(b []byte) js.Value {
 // The JS function may return a string or a Promise<string>.
 func makeCodeFunc(jsFn js.Value) telegram.CodeFunc {
 	return func(ctx context.Context, phone string) (string, error) {
-		return awaitString(jsFn.Invoke(phone))
+		return awaitString(ctx, jsFn.Invoke(phone))
 	}
 }
 
 // makePasswordFunc wraps a JS function as a telegram.PasswordFunc.
 func makePasswordFunc(jsFn js.Value) telegram.PasswordFunc {
 	return func(ctx context.Context, hint string) (string, error) {
-		return awaitString(jsFn.Invoke(hint))
+		return awaitString(ctx, jsFn.Invoke(hint))
 	}
 }
 
 // awaitString resolves a JS value that is either a string or a thenable
 // (Promise) yielding a string. It blocks the calling goroutine until the
 // promise settles; in GOOS=js this is safe — the JS event loop keeps running.
-func awaitString(v js.Value) (string, error) {
+func awaitString(ctx context.Context, v js.Value) (string, error) {
 	if v.Type() != js.TypeObject || v.Get("then").Type() != js.TypeFunction {
 		return v.String(), nil
 	}
@@ -324,6 +338,8 @@ func awaitString(v js.Value) (string, error) {
 		return s, nil
 	case err := <-errCh:
 		return "", err
+	case <-ctx.Done():
+		return "", ctx.Err()
 	}
 }
 
@@ -341,7 +357,7 @@ func awaitString(v js.Value) (string, error) {
 //	await tg.connect();
 //	await tg.account.updateProfile({ first_name: "John" });
 //	await tg.messages.sendMessage({ peer: { _: "inputPeerSelf" }, message: "hi" });
-func wrapClientProxy(base js.Value, client *telegram.Client) js.Value {
+func wrapClientProxy(base js.Value, client *telegram.Client, timeout time.Duration) js.Value {
 	proxyCtor := js.Global().Get("Proxy")
 	empty := js.ValueOf(map[string]any{})
 
@@ -355,7 +371,7 @@ func wrapClientProxy(base js.Value, client *telegram.Client) js.Value {
 		}
 		return newPromise(func(resolve, reject js.Value) {
 			safeGo(reject, func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), timeout)
 				defer cancel()
 				result, err := client.InvokeJSON(ctx, method, jsonParams, true)
 				if err != nil {
@@ -366,6 +382,11 @@ func wrapClientProxy(base js.Value, client *telegram.Client) js.Value {
 			})
 		})
 	}
+
+	// nsCache caches namespace proxies so repeated property access (e.g.
+	// tg.messages.sendMessage) reuses the same Proxy instead of creating a
+	// new one with a fresh js.FuncOf handler on every access.
+	nsCache := make(map[string]js.Value)
 
 	// makeNSProxy creates a namespace proxy: ns.method(params) → invoke("ns.method", params).
 	makeNSProxy := func(ns string) js.Value {
@@ -382,13 +403,16 @@ func wrapClientProxy(base js.Value, client *telegram.Client) js.Value {
 					return js.Undefined()
 				}
 				fullMethod := ns + "." + method
-				return js.FuncOf(func(this js.Value, args []js.Value) any {
+				var methodFn js.Func
+				methodFn = js.FuncOf(func(this js.Value, args []js.Value) any {
+					defer methodFn.Release()
 					var params js.Value
 					if len(args) > 0 {
 						params = args[0]
 					}
 					return invokeMethod(fullMethod, params)
 				})
+				return methodFn
 			}),
 		}
 		return proxyCtor.New(empty, js.ValueOf(handler))
@@ -418,7 +442,12 @@ func wrapClientProxy(base js.Value, client *telegram.Client) js.Value {
 			}
 
 			// Unknown string property → treat as TL namespace.
-			return makeNSProxy(name)
+			if cached, ok := nsCache[name]; ok {
+				return cached
+			}
+			proxy := makeNSProxy(name)
+			nsCache[name] = proxy
+			return proxy
 		}),
 	}
 

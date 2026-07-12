@@ -140,17 +140,6 @@ func dialBrowserWS(url string) (*wsConn, error) {
 		return nil
 	}))
 
-	ws.Call("addEventListener", "close", js.FuncOf(func(this js.Value, args []js.Value) any {
-		c.closeOnce.Do(func() {
-			c.mu.Lock()
-			c.closed = true
-			c.mu.Unlock()
-			close(c.closeCh)
-			fireOpen()
-		})
-		return nil
-	}))
-
 	select {
 	case <-openCh:
 		if openErr != nil {
@@ -197,7 +186,6 @@ func (c *wsConn) Read(p []byte) (int, error) {
 				return 0, &net.OpError{Op: "read", Net: "websocket", Err: fmt.Errorf("i/o timeout")}
 			}
 			timer = time.NewTimer(remaining)
-			defer timer.Stop()
 			timeoutCh = timer.C
 		}
 
@@ -208,6 +196,9 @@ func (c *wsConn) Read(p []byte) (int, error) {
 			// or drains any final queued messages first.
 		case <-timeoutCh:
 			return 0, &net.OpError{Op: "read", Net: "websocket", Err: fmt.Errorf("i/o timeout")}
+		}
+		if timer != nil {
+			timer.Stop()
 		}
 	}
 }

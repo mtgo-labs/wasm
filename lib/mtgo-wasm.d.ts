@@ -21,6 +21,8 @@ export interface ClientOptions {
   phoneNumber?: string;
   codeFunc?: (phone: string) => string | Promise<string>;
   passwordFunc?: (hint: string) => string | Promise<string>;
+  /** RPC timeout in seconds (default 60). */
+  timeout?: number;
 }
 
 export interface MTGoClient {
@@ -34,7 +36,7 @@ export interface MTGoClient {
   setUsername(params: { username: string }): Promise<unknown>;
   setBio(params: { about: string }): Promise<unknown>;
   updateProfile(params: { first_name?: string; last_name?: string; about?: string }): Promise<unknown>;
-  checkUsername(params: { username: string }): Promise<unknown>;
+  checkUsername(params: { username: string }): Promise<boolean>;
   resolveUsername(params: { username: string }): Promise<unknown>;
   resolvePhone(params: { phone: string }): Promise<unknown>;
   sendMessage(params: Record<string, unknown>): Promise<unknown>;
@@ -58,11 +60,17 @@ export interface MTGoClient {
   inviteToChat(params: Record<string, unknown>): Promise<unknown>;
   getUsers(params: { id: unknown[] }): Promise<unknown>;
   getFullUser(params: { id: unknown }): Promise<unknown>;
-  answerCallbackQuery(params: Record<string, unknown>): Promise<unknown>;
-  answerInlineQuery(params: Record<string, unknown>): Promise<unknown>;
+  answerCallbackQuery(params: Record<string, unknown>): Promise<boolean>;
+  answerInlineQuery(params: Record<string, unknown>): Promise<boolean>;
   getMyCommands(params?: Record<string, unknown>): Promise<unknown>;
-  setMyCommands(params: Record<string, unknown>): Promise<unknown>;
-  readonly [namespace: string]: Record<string, (...args: any[]) => Promise<unknown>>;
+  setMyCommands(params: Record<string, unknown>): Promise<boolean>;
+  /**
+   * At runtime, the client is wrapped in a Proxy that supports namespace access:
+   *   client.account.updateProfile({ first_name: "John" })
+   *   client.messages.sendMessage({ peer: ..., message: "hi" })
+   * This is not reflected in the type system. For typed arbitrary TL access,
+   * use `client.invoke<T>(method, params)`.
+   */
 }
 
 export interface MTGoWasmAPI {

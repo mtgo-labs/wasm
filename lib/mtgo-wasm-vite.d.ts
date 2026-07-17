@@ -37,6 +37,8 @@ export interface ClientOptions {
   codeFunc?: (phone: string) => string | Promise<string>;
   /** 2FA password provider: `async (hint) => password`. */
   passwordFunc?: (hint: string) => string | Promise<string>;
+  /** RPC timeout in seconds (default 60). */
+  timeout?: number;
 }
 
 /** A Telegram MTProto client instance backed by the WASM runtime. */
@@ -74,8 +76,8 @@ export interface MTGoClient {
   setBio(params: { about: string }): Promise<unknown>;
   /** Update profile fields (firstName, lastName, bio). */
   updateProfile(params: { first_name?: string; last_name?: string; about?: string }): Promise<unknown>;
-  /** Check if a username is available. */
-  checkUsername(params: { username: string }): Promise<unknown>;
+  /** Check if a username is available. Returns true if available. */
+  checkUsername(params: { username: string }): Promise<boolean>;
 
   // -- Peer resolution --
   resolveUsername(params: { username: string }): Promise<unknown>;
@@ -109,10 +111,10 @@ export interface MTGoClient {
   getFullUser(params: { id: unknown }): Promise<unknown>;
 
   // -- Bots --
-  answerCallbackQuery(params: Record<string, unknown>): Promise<unknown>;
-  answerInlineQuery(params: Record<string, unknown>): Promise<unknown>;
+  answerCallbackQuery(params: Record<string, unknown>): Promise<boolean>;
+  answerInlineQuery(params: Record<string, unknown>): Promise<boolean>;
   getMyCommands(params?: Record<string, unknown>): Promise<unknown>;
-  setMyCommands(params: Record<string, unknown>): Promise<unknown>;
+  setMyCommands(params: Record<string, unknown>): Promise<boolean>;
 
   /** TL namespace proxy for all other TL methods. */
   readonly [namespace: string]: TGNamespaces | TGMethods | Promise<unknown> | MTGoUser | null | number | Function;

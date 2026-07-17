@@ -4,12 +4,14 @@ package wasm
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"syscall/js"
 	"time"
 
 	"github.com/mtgo-labs/mtgo/telegram"
+	"github.com/mtgo-labs/mtgo/tg"
 )
 
 var nextClientID atomic.Int64
@@ -116,6 +118,68 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 	}
 
 
+	// jsBoolRPC is like jsRPC but returns a bare JS boolean (true) on success
+	// instead of the JSON-encoded result. The generated Go methods for these
+	// TL calls discard the BoolTrue/BoolFalse result (_ = result; return nil),
+	// so InvokeJSON always succeeds — we just return true. Used for methods
+	// where only success/failure matters (not the Bool value itself).
+	jsBoolRPC := func(method string) func(this js.Value, args []js.Value) any {
+		return func(this js.Value, args []js.Value) any {
+			var jsonParams []byte
+			if len(args) > 0 && args[0].Type() == js.TypeObject {
+				jsonParams = jsValueToJSON(args[0])
+			} else {
+				jsonParams = []byte("{}")
+			}
+			return newPromise(func(resolve, reject js.Value) {
+				safeGo(reject, func() {
+					ctx, cancel := context.WithTimeout(context.Background(), timeout)
+					defer cancel()
+					if _, err := client.InvokeJSON(ctx, method, jsonParams, true); err != nil {
+						reject.Invoke(jsError(err))
+						return
+					}
+					resolve.Invoke(js.ValueOf(true))
+				})
+			})
+		}
+	}
+
+	// jsCheckUsername calls account.checkUsername via typed RPC and returns
+	// the actual boolean: BoolTrue = username available, BoolFalse = taken.
+	// Unlike the other Bool methods, the real value matters here.
+	jsCheckUsername := func(this js.Value, args []js.Value) any {
+		req := &tg.AccountCheckUsernameRequest{}
+		if len(args) > 0 && args[0].Type() == js.TypeObject {
+			if err := json.Unmarshal(jsValueToJSON(args[0]), req); err != nil {
+				return newPromise(func(_, reject js.Value) {
+					reject.Invoke(jsError(fmt.Errorf("checkUsername: %w", err)))
+				})
+			}
+		}
+		return newPromise(func(resolve, reject js.Value) {
+			safeGo(reject, func() {
+				ctx, cancel := context.WithTimeout(context.Background(), timeout)
+				defer cancel()
+				result, err := client.Raw().Invoke(ctx, req, func(r *tg.Reader) (tg.TLObject, error) {
+					return tg.ReadTLObject(r)
+				})
+				if err != nil {
+					reject.Invoke(jsError(err))
+					return
+				}
+				switch result.(type) {
+				case *tg.BoolTrue:
+					resolve.Invoke(js.ValueOf(true))
+				case *tg.BoolFalse:
+					resolve.Invoke(js.ValueOf(false))
+				default:
+					reject.Invoke(jsError(fmt.Errorf("checkUsername: unexpected result type %T", result)))
+				}
+			})
+		})
+	}
+
 	clientObj := map[string]any{
 		"id": id,
 		"connect": js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -185,7 +249,7 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 		"setUsername":    js.FuncOf(jsRPC("account.updateUsername", "")),
 		"setBio":         js.FuncOf(jsRPC("account.updateProfile", "")),
 		"updateProfile":  js.FuncOf(jsRPC("account.updateProfile", "")),
-		"checkUsername":  js.FuncOf(jsRPC("account.checkUsername", "")),
+		"checkUsername":  js.FuncOf(jsCheckUsername),
 
 		// -- Peer resolution --
 		"resolveUsername": js.FuncOf(jsRPC("contacts.resolveUsername", "")),
@@ -226,7 +290,29 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 		"sendReaction":     js.FuncOf(jsRPC("messages.sendReaction", "")),
 		"readHistory":      js.FuncOf(jsRPC("messages.readHistory", "")),
 		"pinMessage":       js.FuncOf(jsRPC("messages.updatePinnedMessage", "")),
-		"unpinMessage":     js.FuncOf(jsRPC("messages.updatePinnedMessage", `{"pinned": false}`)),
+		"unpinMessage": js.FuncOf(func(this js.Value, args []js.Value) any {
+			var params js.Value
+			if len(args) > 0 && args[0].Type() == js.TypeObject {
+				params = args[0]
+			} else {
+				params = js.Global().Get("Object").New()
+			}
+			paramsCopy := js.Global().Get("Object").Call("assign", js.Global().Get("Object").New(), params)
+			paramsCopy.Set("unpin", js.ValueOf(true))
+			jsonParams := jsValueToJSON(paramsCopy)
+			return newPromise(func(resolve, reject js.Value) {
+				safeGo(reject, func() {
+					ctx, cancel := context.WithTimeout(context.Background(), timeout)
+					defer cancel()
+					result, err := client.InvokeJSON(ctx, "messages.updatePinnedMessage", jsonParams, true)
+					if err != nil {
+						reject.Invoke(jsError(err))
+						return
+					}
+					resolve.Invoke(jsonToJSValue(result))
+				})
+			})
+		}),
 
 		// -- Chats & channels --
 		"getChat":          js.FuncOf(jsRPC("messages.getChats", "")),
@@ -243,10 +329,10 @@ func jsCreateClient(this js.Value, args []js.Value) any {
 		"getFullUser":      js.FuncOf(jsRPC("users.getFullUser", "")),
 
 		// -- Bots --
-		"answerCallbackQuery": js.FuncOf(jsRPC("messages.setBotCallbackAnswer", "")),
-		"answerInlineQuery":   js.FuncOf(jsRPC("messages.setInlineBotResults", "")),
+		"answerCallbackQuery": js.FuncOf(jsBoolRPC("messages.setBotCallbackAnswer")),
+		"answerInlineQuery":   js.FuncOf(jsBoolRPC("messages.setInlineBotResults")),
 		"getMyCommands":       js.FuncOf(jsRPC("bots.getBotCommands", "")),
-		"setMyCommands":       js.FuncOf(jsRPC("bots.setBotCommands", "")),
+		"setMyCommands":       js.FuncOf(jsBoolRPC("bots.setBotCommands")),
 	}
 	// Wrap the client in a Proxy: known methods (connect, invoke, me,
 	// disconnect, id) pass through; any other string property is treated
